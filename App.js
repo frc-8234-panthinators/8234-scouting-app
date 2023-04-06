@@ -17,6 +17,11 @@ const Stack = createNativeStackNavigator();
 let teamNumber = 'XXXX';
 let connectedToInternet = false;
 let forms = [];
+let hasLoaded = false;
+
+async function asyncSaveForms() {
+  AsyncStorage.setItem('forms', JSON.stringify(forms));
+}
 
 export default function App() {
   const [displayNumber, setTeamNumber] = useState(teamNumber);
@@ -24,15 +29,27 @@ export default function App() {
   const [wifiColor, setWifiColor] = useState('#C42021');
   const [usbColor, setUSBColor] = useState('#C42021');
   const [selectedForm, setSelectedForm] = useState(0);
-  AsyncStorage.getItem('teamNumber').then((value) => {
-    if (value != null) {
-      teamNumber = JSON.parse(value);
-      setTeamNumber(teamNumber);
-    }
-  });
+  const [formList, setFormList] = useState(forms)
+  if (!hasLoaded) {
+    hasLoaded = true;
+    AsyncStorage.getItem('forms').then((value) => {
+      if (value != null) {
+        forms = JSON.parse(value);
+        setFormList(forms)
+      }
+    })
+  }
+  if (teamNumber == 'XXXX') {
+    AsyncStorage.getItem('teamNumber').then((value) => {
+      if (value != null) {
+        teamNumber = JSON.parse(value);
+        setTeamNumber(teamNumber);
+      }
+    });
+  }
   setInterval(async () => {
     NetInfo.fetch().then(state => {
-      if (state.type == 'wifi' && state.isConnected) {
+      if (state.isConnected) {
         connectedToInternet = true;
         setWifiColor('#21C420');
       } else {
@@ -98,33 +115,89 @@ export default function App() {
   }
   function ScoutFormCreator() {
     const [questionType, selectQuestionType] = useState('multipleChoice');
+    const [toDelete, setToDelete] = useState(0)
+
+    function FormDeleteWarning({navigation}) {
+      return (
+        <View style={styles.centeredContainer}>
+          <Ionicons name="md-warning" style={styles.warningIcon} color="#C1D7F0" size={128}></Ionicons>
+          <Text style={styles.smallTextCentered}>Are you sure you want to permanently delete the form "{forms[toDelete].formTitle}"?</Text>
+          <View style={styles.sideBySide}>
+            <Pressable style={styles.dualButton} onPress={() => {
+              let newForms = [];
+              Object.assign(newForms, forms)
+              newForms.splice(toDelete, 1)
+              setFormList(newForms)
+              navigation.goBack()
+              forms = []
+              Object.assign(forms, newForms)
+              asyncSaveForms()
+              }}><Text style={styles.smallText}>Confirm</Text></Pressable>
+            <Pressable style={styles.dualButton} onPress={() => navigation.goBack()}><Text style={styles.smallText}>Cancel</Text></Pressable>
+          </View>
+        </View>
+      )
+    }
+
     function ScoutFormMainPage({navigation}) {
+      function editForm(formNum) {
+        setSelectedForm(formNum)
+        navigation.navigate('ScoutEditPage');
+      }
+      function deleteForm(formNum) {
+        setToDelete(formNum)
+        navigation.navigate('FormDeleteWarning');
+        asyncSaveForms();
+      }
+      function SavedFormList() {
+        let formTitleList = formList.map((element, index) => {
+          return (
+            <View style={styles.formListContainer}>
+              <Text style={styles.formTitleText}>{element.formTitle}</Text>
+              <Pressable style={styles.sideButton} onPress={() => deleteForm(index)}><Ionicons name='md-trash' size={30} color="#C1D7F0"></Ionicons></Pressable>
+              <Pressable style={styles.sideButton} onPress={() => editForm(index)}><Ionicons name='md-create' size={30} color="#C1D7F0"></Ionicons></Pressable>
+            </View>
+          )
+        })
+        return (
+          <View style={styles.wrapper}>
+            {formTitleList}
+          </View>
+        )
+      }
       function createNewForm() {
         navigation.navigate('ScoutEditPage');
         forms.push({'formTitle': 'New Form', 'formElements': []})
         setSelectedForm(forms.length - 1);
+        asyncSaveForms();
       }
       return (
       <View style={styles.container}>
         <Text style={styles.basicText}>Form Manager</Text>
         <Pressable className="add" style={styles.wideButton} onPress={createNewForm}><Ionicons name='md-add' size={36} color='#C1D7F0'></Ionicons></Pressable>
+        <SavedFormList></SavedFormList>
       </View>
       )
     }
-    function ScoutFormEditPage() {
-      console.log(forms[selectedForm])
+    function ScoutFormEditPage({navigation}) {
       const [formData, setFormData] = useState(forms[selectedForm]);
+      Object.assign(forms[selectedForm], formData)
+      console.log(formData);
+      function setQuestionTitle(value, index) {
+        let newFormData = {};
+        Object.assign(newFormData, formData);
+        newFormData.formElements[index].questionText = value.nativeEvent.text;
+        setFormData(newFormData);
+        asyncSaveForms();
+      }
       function FormView() {
         console.log('rendering formview')
         const formInfo = formData.formElements.map((element, index) => {
           if (element.questionType == 'multipleChoice') {
             return (
               <View key={index} style={styles.nestedContainer}>
-                <TextInput style={styles.thinInput} placeholder="Question" placeholderTextColor='#2B303B' onEndEditing={setFormTitle}></TextInput>
+                <TextInput style={styles.thinInput} placeholder="Question" placeholderTextColor='#2B303B' onEndEditing={(value) => setQuestionTitle(value, index)} defaultValue={formData.formElements[index].questionText}></TextInput>
                 <TextInput style={styles.thinInput} placeholder="Option 1" placeholderTextColor='#2B303B' onEndEditing={setFormTitle}></TextInput>
-                <TextInput style={styles.thinInput} placeholder="Option 2" placeholderTextColor='#2B303B' onEndEditing={setFormTitle}></TextInput>
-                <TextInput style={styles.thinInput} placeholder="Option 3" placeholderTextColor='#2B303B' onEndEditing={setFormTitle}></TextInput>
-                <TextInput style={styles.thinInput} placeholder="Option 4" placeholderTextColor='#2B303B' onEndEditing={setFormTitle}></TextInput>
               </View>
             )
           } else if (element.questionType == 'text') {
@@ -148,22 +221,29 @@ export default function App() {
         )
       }
       function addNewElement() {
-        const newFormData = {};
+        let newFormData = {};
         Object.assign(newFormData, formData);
         newFormData.formElements.push({'questionType': questionType, 'questionText': 'New Question', 'questionOptions': []});
         setFormData(newFormData);
       }
       function setFormTitle(value) {
-        const newFormData = {};
+        let newFormData = {};
         Object.assign(newFormData, formData);
         newFormData.formTitle = value.nativeEvent.text;
         setFormData(newFormData);
+        asyncSaveForms();
+      }
+      function saveForm() {
+        Object.assign(forms[selectedForm], formData);
+        setFormList(forms)
+        navigation.goBack();
+        asyncSaveForms();
       }
       return (
         <ScrollView contentContainerStyle={{backgroundColor: '#23272f', flexGrow: 1}}>
           <View style={styles.container}>
             <Text style={styles.basicText}>Form Editor</Text>
-            <TextInput style={styles.thinInput} placeholder="Form Name" placeholderTextColor='#2B303B' onEndEditing={setFormTitle}></TextInput>
+            <TextInput style={styles.thinInput} placeholder="Form Name" placeholderTextColor='#2B303B' onEndEditing={setFormTitle} defaultValue={formData.formTitle}></TextInput>
             <View style={styles.sideBySide}>
               <Picker selectedValue={questionType} style={styles.questionPicker} mode='dropdown' themeVariant="dark" dropdownIconColor={'#C1D7F0'} onValueChange={(value, indx) => selectQuestionType(value)}>
                 <Picker.Item label="Multiple Choice" value="multipleChoice" />
@@ -174,6 +254,7 @@ export default function App() {
               <Pressable className="addQuestion" style={styles.addButton} onPress={addNewElement}><Ionicons name='md-add' size={36} color='#C1D7F0'></Ionicons></Pressable>
             </View>
             <FormView></FormView>
+            <Pressable className="saveForm" style={styles.wideButtonBottom} onPress={saveForm}><Text style={styles.basicText}>Save</Text></Pressable>
           </View>
         </ScrollView>
       )
@@ -186,6 +267,7 @@ export default function App() {
       }>
         <Stack.Screen name="ScoutMainPage" component={ScoutFormMainPage} />
         <Stack.Screen name="ScoutEditPage" component={ScoutFormEditPage} />
+        <Stack.Screen name="FormDeleteWarning" component={FormDeleteWarning} />
       </Stack.Navigator>
     );
   }
@@ -246,6 +328,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 10,
   },
+  centeredContainer: {
+    flex: 1,
+    backgroundColor: '#23272f',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 10,
+  },
   questionPicker: {
     flexGrow: 1,
     color: '#C1D7F0',
@@ -286,10 +375,23 @@ const styles = StyleSheet.create({
     fontSize: 30,
     marginBottom: 15,
   },
+  formTitleText: {
+    color: '#C1D7F0',
+    fontSize: 30,
+    marginBottom: 15,
+    marginTop: 15,
+    marginLeft: 20,
+    flexGrow: 1,
+  },
   smallText: {
     color: '#C1D7F0',
     fontSize: 20,
-    
+  },
+  smallTextCentered: {
+    color: '#C1D7F0',
+    fontSize: 20,
+    textAlign: 'center',
+    margin: 10,
   },
   upcomingMatchDiv: {
     backgroundColor: '#1A1D23',
@@ -332,11 +434,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  wideButtonBottom: {
+    width: '90%',
+    backgroundColor: '#1A1D23',
+    fontSize: 30,
+    padding: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    marginBottom: 20,
+  },
   addButton: {
     backgroundColor: '#1A1D23',
     fontSize: 30,
     padding: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  dualButton: {
+    backgroundColor: '#1A1D23',
+    width: '49%',
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 30,
+    marginTop: 20,
+    borderRadius: 10,
+  },
+  sideButton: {
+    margin: 10,
+  },
+  formListContainer: {
+    backgroundColor: "#1A1D23",
+    width: "90%",
+    marginTop: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  wrapper: {
+    width: '100%',
+    alignItems: 'center'
+  },
+  warningIcon: {
+    position: 'absolute',
+    top: '12%',
   }
 });
