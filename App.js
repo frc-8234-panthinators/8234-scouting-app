@@ -5,7 +5,7 @@ import * as React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Battery from 'expo-battery';
@@ -26,8 +26,8 @@ async function asyncSaveForms() {
 export default function App() {
   const [displayNumber, setTeamNumber] = useState(teamNumber);
   const [matchData, setMatchData] = useState(['Loading...']);
-  const [wifiColor, setWifiColor] = useState('#C42021');
-  const [usbColor, setUSBColor] = useState('#C42021');
+  const [wifiColor, setWifiColor] = useState('#FF2B2B');
+  const [usbColor, setUSBColor] = useState('#FF2B2B');
   const [selectedForm, setSelectedForm] = useState(0);
   const [formList, setFormList] = useState(forms)
   if (!hasLoaded) {
@@ -54,12 +54,12 @@ export default function App() {
         setWifiColor('#21C420');
       } else {
         connectedToInternet = false;
-        setWifiColor('#C42021');
+        setWifiColor('#FF2B2B');
       }
     });
     const batteryInfo = await Battery.getBatteryStateAsync();
     if (batteryInfo == 1) {
-      setUSBColor('#C42021')
+      setUSBColor('#FF2B2B')
     } else if (batteryInfo == 2) {
       setUSBColor('#DFD858')
     }
@@ -101,15 +101,14 @@ export default function App() {
     return (
       <View style={styles.container}>
         <View style={styles.cornerIcon}>
-          <Ionicons name='md-wifi' size={36} color={wifiColor}/>
-          <Ionicons name='md-code' size={36} color={usbColor}/>
+          <MaterialIcons name='wifi' size={36} color={wifiColor}/>
+          <MaterialIcons name='usb' size={36} style={{marginLeft: 5}} color={usbColor}/>
         </View>
         <Text style={styles.basicText}>Team {displayNumber}</Text>
         <View style={styles.upcomingMatchDiv}>
           <Text style={styles.basicText}>Upcoming Matches</Text>
           <MatchTable></MatchTable>
         </View>
-        <RefreshButton></RefreshButton>
       </View>
     );
   }
@@ -120,7 +119,7 @@ export default function App() {
     function FormDeleteWarning({navigation}) {
       return (
         <View style={styles.centeredContainer}>
-          <Ionicons name="md-warning" style={styles.warningIcon} color="#C1D7F0" size={128}></Ionicons>
+          <MaterialIcons name="warning" style={styles.warningIcon} color="#C1D7F0" size={128}></MaterialIcons>
           <Text style={styles.smallTextCentered}>Are you sure you want to permanently delete the form "{forms[toDelete].formTitle}"?</Text>
           <View style={styles.sideBySide}>
             <Pressable style={styles.dualButton} onPress={() => {
@@ -154,8 +153,8 @@ export default function App() {
           return (
             <View style={styles.formListContainer}>
               <Text style={styles.formTitleText}>{element.formTitle}</Text>
-              <Pressable style={styles.sideButton} onPress={() => deleteForm(index)}><Ionicons name='md-trash' size={30} color="#C1D7F0"></Ionicons></Pressable>
-              <Pressable style={styles.sideButton} onPress={() => editForm(index)}><Ionicons name='md-create' size={30} color="#C1D7F0"></Ionicons></Pressable>
+              <Pressable style={styles.sideButton} onPress={() => deleteForm(index)}><MaterialIcons name='delete' size={30} color="#C1D7F0"></MaterialIcons></Pressable>
+              <Pressable style={styles.sideButton} onPress={() => editForm(index)}><MaterialIcons name='create' size={30} color="#C1D7F0"></MaterialIcons></Pressable>
             </View>
           )
         })
@@ -174,15 +173,15 @@ export default function App() {
       return (
       <View style={styles.container}>
         <Text style={styles.basicText}>Form Manager</Text>
-        <Pressable className="add" style={styles.wideButton} onPress={createNewForm}><Ionicons name='md-add' size={36} color='#C1D7F0'></Ionicons></Pressable>
+        <Pressable className="add" style={styles.wideButton} onPress={createNewForm}><MaterialIcons name='add' size={36} color='#C1D7F0'></MaterialIcons></Pressable>
         <SavedFormList></SavedFormList>
       </View>
       )
     }
     function ScoutFormEditPage({navigation}) {
       const [formData, setFormData] = useState(forms[selectedForm]);
+      let formInvisible = true
       Object.assign(forms[selectedForm], formData)
-      console.log(formData);
       function setQuestionTitle(value, index) {
         let newFormData = {};
         Object.assign(newFormData, formData);
@@ -190,32 +189,81 @@ export default function App() {
         setFormData(newFormData);
         asyncSaveForms();
       }
+      function createNewOption(index) {
+        let newFormData = {};
+        Object.assign(newFormData, formData);
+        newFormData.formElements[index].questionOptions.push(['', false]);
+        setFormData(newFormData);
+        asyncSaveForms();
+      }
+      function removeOption(index) {
+        let newFormData = {};
+        Object.assign(newFormData, formData);
+        newFormData.formElements[index].questionOptions.pop()
+        setFormData(newFormData);
+        asyncSaveForms();
+      }
+      function removeQuestion(index) {
+        let newFormData = {};
+        Object.assign(newFormData, formData);
+        newFormData.formElements.splice(index, 1)
+        setFormData(newFormData);
+        asyncSaveForms();
+      }
+      function setMultipleOption(value, index, qindex) {
+        let newFormData = {};
+        Object.assign(newFormData, formData);
+        newFormData.formElements[index].questionOptions[qindex][0] = value.nativeEvent.text;
+        newFormData.formElements[index].questionOptions[qindex][1] = false;
+        setFormData(newFormData);
+        asyncSaveForms();
+      }
       function FormView() {
-        console.log('rendering formview')
+        if (formData.formElements.length > 0) {
+          formInvisible = false;
+        }
         const formInfo = formData.formElements.map((element, index) => {
           if (element.questionType == 'multipleChoice') {
             return (
               <View key={index} style={styles.nestedContainer}>
+                <Pressable onPress={() => removeQuestion(index)} style={styles.rightCornerButton}><MaterialIcons name="delete" size={30} color='#C1D7F0'></MaterialIcons></Pressable>
                 <TextInput style={styles.thinInput} placeholder="Question" placeholderTextColor='#2B303B' onEndEditing={(value) => setQuestionTitle(value, index)} defaultValue={formData.formElements[index].questionText}></TextInput>
-                <TextInput style={styles.thinInput} placeholder="Option 1" placeholderTextColor='#2B303B' onEndEditing={setFormTitle}></TextInput>
+                {element.questionOptions.map((qelement, qindex) => {
+                  console.log(qelement)
+                  return (
+                    <TextInput key={qindex} style={styles.thinInput} placeholder={`Option ${qindex + 1}`} placeholderTextColor='#2B303B' onEndEditing={(value) => setMultipleOption(value, index, qindex)} defaultValue={qelement[0]}></TextInput>
+                  )
+                })}
+                <View style={styles.centerHorizontalWrapper}>
+                  <Pressable onPress={() => createNewOption(index)} style={styles.formAddButton}><MaterialIcons name="add" size={36} color='#C1D7F0'></MaterialIcons></Pressable>
+                  <Pressable onPress={() => removeOption(index)} style={styles.formAddButton}><MaterialIcons name="remove" size={36} color='#C1D7F0'></MaterialIcons></Pressable>
+                </View>
               </View>
             )
           } else if (element.questionType == 'text') {
             return (
               <View style={styles.nestedContainer}>
-                <TextInput style={styles.thinInput} placeholder="Question" placeholderTextColor='#2B303B' onEndEditing={setFormTitle}></TextInput>
+                <Pressable onPress={() => removeQuestion(index)} style={styles.rightCornerButton}><MaterialIcons name="delete" size={30} color='#C1D7F0'></MaterialIcons></Pressable>
+                <TextInput style={styles.thinInput} placeholder="Question" placeholderTextColor='#2B303B' onEndEditing={(value) => setQuestionTitle(value, index)} defaultValue={formData.formElements[index].questionText}></TextInput>
               </View>
             )
           } else if (element.questionType == 'number') {
             return (
               <View style={styles.nestedContainer}>
+                <Pressable onPress={() => removeQuestion(index)} style={styles.rightCornerButton}><MaterialIcons name="delete" size={30} color='#C1D7F0'></MaterialIcons></Pressable>
                 <TextInput style={styles.thinInput} placeholder="Question" placeholderTextColor='#2B303B' onEndEditing={setFormTitle}></TextInput>
               </View>
             )
           }
         })
+        let endStyle;
+        if (formInvisible) {
+          endStyle = styles.invisible;
+        } else {
+          endStyle = styles.topLevelWidgetContainer;
+        }
         return (
-          <View style={styles.nestedContainer}>
+          <View style={endStyle}>
             {formInfo}
           </View>
         )
@@ -223,7 +271,7 @@ export default function App() {
       function addNewElement() {
         let newFormData = {};
         Object.assign(newFormData, formData);
-        newFormData.formElements.push({'questionType': questionType, 'questionText': 'New Question', 'questionOptions': []});
+        newFormData.formElements.push({'questionType': questionType, 'questionText': 'New Question', 'questionOptions': [['', false]]});
         setFormData(newFormData);
       }
       function setFormTitle(value) {
@@ -251,7 +299,7 @@ export default function App() {
                 <Picker.Item label="Number" value="number" />
                 <Picker.Item label="Checkbox" value="checkbox" />
               </Picker>
-              <Pressable className="addQuestion" style={styles.addButton} onPress={addNewElement}><Ionicons name='md-add' size={36} color='#C1D7F0'></Ionicons></Pressable>
+              <Pressable className="addQuestion" style={styles.addButton} onPress={addNewElement}><MaterialIcons name='add' size={36} color='#C1D7F0'></MaterialIcons></Pressable>
             </View>
             <FormView></FormView>
             <Pressable className="saveForm" style={styles.wideButtonBottom} onPress={saveForm}><Text style={styles.basicText}>Save</Text></Pressable>
@@ -287,22 +335,67 @@ export default function App() {
       </View>
     );
   }
+  function FormViewScreen() {
+    const [formData, setFormData] = useState(forms[selectedForm]);
+    function selectOption(questionIndex, optionIndex) {
+      let newFormData = {};
+      Object.assign(newFormData, formData);
+      newFormData.formElements[questionIndex].questionOptions[optionIndex][1] = true;
+      newFormData.formElements[questionIndex].questionOptions.forEach((option, index) => {
+        if (index != optionIndex) {
+          newFormData.formElements[questionIndex].questionOptions[index][1] = false;
+        }
+      });
+      setFormData(newFormData);
+      Object.assign(forms[selectedForm], newFormData);
+    }
+    function FormView() {
+      let formInfo = formData.formElements.map((element, index) => {
+        if (element.questionType == 'multipleChoice') {
+          return(
+            <View style={styles.nestedContainer}>
+              <Text style={styles.basicText}>{element.questionText}</Text>
+              {element.questionOptions.map((option, qindex) => {
+                const isChecked = option[1];
+                return (<View style={styles.leftSideBySide}><Pressable onPress={() => selectOption(index, qindex)} style={styles.addButton}><MaterialIcons name={isChecked ? "radio-button-checked" : "radio-button-unchecked"} size={36} color='#C1D7F0'></MaterialIcons></Pressable><Text style={styles.basicTextNoMargin}>{option[0]}</Text></View>)
+              })}
+            </View>
+          )
+        } else if (element.questionType == 'text') {
+        } else if (element.questionType == 'number') {
+        }
+      });
+      return (
+        <View style={styles.topLevelWidgetContainer}>
+          {formInfo}
+        </View>
+      )
+    }
+    return (
+      <View style={styles.container}>
+        <Text style={styles.basicText}>Form View</Text>
+        <FormView></FormView>
+      </View>
+    )
+  }
   return (
     <NavigationContainer>
       <StatusBar style="light" translucent={false} backgroundColor='#23272f' />
-      <Tab.Navigator initialRouteName='Home' activeColor="#C42021" screenOptions={( {route} ) => ({
+      <Tab.Navigator initialRouteName='Home' activeColor="#FF2B2B" screenOptions={( {route} ) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
 
           if (route.name === 'Home') {
-            iconName = 'md-home'
+            iconName = 'home'
           } else if (route.name === 'Settings') {
-            iconName = 'md-settings';
+            iconName = 'settings';
           } else if (route.name === 'Manage Forms') {
-            iconName = 'md-add-circle';
-          };
+            iconName = 'add-circle';
+          } else if (route.name === 'Active Form') {
+            iconName = 'ballot';
+          }
           // You can return any component that you like here!
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <MaterialIcons name={iconName} size={size} color={color} />;
         },
         headerShown: false,
         tabBarStyle: {
@@ -311,9 +404,10 @@ export default function App() {
           paddingBottom: 5,
           height: 60
         },
-        tabBarActiveTintColor: '#C42021'
+        tabBarActiveTintColor: '#FF2B2B'
         })}>
         <Tab.Screen name="Home" component={Home} />
+        <Tab.Screen name="Active Form" component={FormViewScreen} />
         <Tab.Screen name="Manage Forms" component={ScoutFormCreator} />
         <Tab.Screen name="Settings" component={Settings} />
       </Tab.Navigator>
@@ -335,6 +429,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingTop: 10,
   },
+  centerHorizontalWrapper: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
   questionPicker: {
     flexGrow: 1,
     color: '#C1D7F0',
@@ -345,11 +446,27 @@ const styles = StyleSheet.create({
     top: '1.5%',
     left: '5%',
     flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 10,
+  },
+  rightCornerButton: {
+    position: 'absolute',
+    top: '1.5%',
+    right: '1.5%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1A1D23',
   },
   sideBySide: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '90%',
+    gap: 10,
+  },
+  leftSideBySide: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     width: '90%',
     gap: 10,
@@ -374,6 +491,11 @@ const styles = StyleSheet.create({
     color: '#C1D7F0',
     fontSize: 30,
     marginBottom: 15,
+    marginLeft: 10
+  },
+  basicTextNoMargin: {
+    color: '#C1D7F0',
+    fontSize: 30,
   },
   formTitleText: {
     color: '#C1D7F0',
@@ -401,9 +523,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 10,
   },
-  nestedContainer: {
+  topLevelWidgetContainer: {
     backgroundColor: '#1A1D23',
     width: '90%',
+    borderStyle: 'solid',
+    borderWidth: 1,
+    borderColor: '#C1D7F0',
+    marginTop: 15
+  },
+  nestedContainer: {
+    backgroundColor: '#1A1D23',
+    width: '100%',
     borderBottomStyle: 'solid',
     borderBottomWidth: 1,
     borderBottomColor: '#C1D7F0',
@@ -460,7 +590,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     fontSize: 30,
     marginTop: 20,
+    borderRadius: 10
+  },
+  formAddButton: {
+    backgroundColor: '#1A1D23',
+    width: '45%',
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 30,
+    marginTop: 20,
     borderRadius: 10,
+    borderStyle: 'solid',
+    borderColor: '#C1D7F0',
+    borderWidth: 1,
+    margin: 'auto'
   },
   sideButton: {
     margin: 10,
