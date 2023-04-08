@@ -29,7 +29,8 @@ export default function App() {
   const [wifiColor, setWifiColor] = useState('#FF2B2B');
   const [usbColor, setUSBColor] = useState('#FF2B2B');
   const [selectedForm, setSelectedForm] = useState(0);
-  const [formList, setFormList] = useState(forms)
+  const [formList, setFormList] = useState(forms);
+  const [reloadVal, setReload] = useState(false);
   if (!hasLoaded) {
     hasLoaded = true;
     AsyncStorage.getItem('forms').then((value) => {
@@ -286,6 +287,7 @@ export default function App() {
         setFormList(forms)
         navigation.goBack();
         asyncSaveForms();
+        setReload(!reloadVal);
       }
       return (
         <ScrollView contentContainerStyle={{backgroundColor: '#23272f', flexGrow: 1}}>
@@ -337,6 +339,13 @@ export default function App() {
   }
   function FormViewScreen() {
     const [formData, setFormData] = useState(forms[selectedForm]);
+    if (formData == undefined) {
+      return (
+        <View style={styles.centeredContainer}>
+          <Text style={styles.smallTextCentered}>Please create a form before using the viewer</Text>
+        </View>
+      )
+    }
     function selectOption(questionIndex, optionIndex) {
       let newFormData = {};
       Object.assign(newFormData, formData);
@@ -349,7 +358,7 @@ export default function App() {
       setFormData(newFormData);
       Object.assign(forms[selectedForm], newFormData);
     }
-    function FormView() {
+    function FormView(reloadVal) {
       let formInfo = formData.formElements.map((element, index) => {
         if (element.questionType == 'multipleChoice') {
           return(
@@ -371,10 +380,29 @@ export default function App() {
         </View>
       )
     }
+    function FormPicker() {
+      const [formList, setFormList] = useState(forms);
+      function selectForm(value, index) {
+        setSelectedForm(value);
+        setFormData(forms[value]);
+      }
+      return (
+        <View style={styles.sideBySide}>
+          <Picker selectedValue={selectedForm} style={styles.formPicker} mode='dropdown' themeVariant="dark" dropdownIconColor={'#C1D7F0'} onValueChange={(value, indx) => selectForm(value)}>
+            {Object.keys(formList).map((key, index) => {
+              return (
+                <Picker.Item label={formList[key].formTitle} value={key} />
+              )
+            })}
+          </Picker>
+        </View>
+      )
+    }
     return (
       <View style={styles.container}>
         <Text style={styles.basicText}>Form View</Text>
-        <FormView></FormView>
+        <FormPicker></FormPicker>
+        <FormView value={reloadVal}></FormView>
       </View>
     )
   }
@@ -440,6 +468,12 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     color: '#C1D7F0',
     backgroundColor: '#1A1D23',
+  },
+  formPicker: {
+    flexGrow: 1,
+    color: '#C1D7F0',
+    backgroundColor: '#1A1D23',
+    height: 60
   },
   cornerIcon: {
     position: 'absolute',
