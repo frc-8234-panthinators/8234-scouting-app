@@ -274,6 +274,7 @@ export default function App() {
         Object.assign(newFormData, formData);
         newFormData.formElements.push({'questionType': questionType, 'questionText': 'New Question', 'questionOptions': [['', false]]});
         setFormData(newFormData);
+        asyncSaveForms();
       }
       function setFormTitle(value) {
         let newFormData = {};
@@ -358,6 +359,14 @@ export default function App() {
       setFormData(newFormData);
       Object.assign(forms[selectedForm], newFormData);
     }
+    function setTextAnswer(questionIndex, value) {
+      let newFormData = {};
+      Object.assign(newFormData, formData);
+      newFormData.formElements[questionIndex].questionOptions[0][1] = true;
+      newFormData.formElements[questionIndex].questionOptions[0][0] = value.nativeEvent.text;
+      setFormData(newFormData);
+      Object.assign(forms[selectedForm], newFormData);
+    }
     function FormView(reloadVal) {
       let formInfo = formData.formElements.map((element, index) => {
         if (element.questionType == 'multipleChoice') {
@@ -371,6 +380,12 @@ export default function App() {
             </View>
           )
         } else if (element.questionType == 'text') {
+          return (
+            <View style={styles.nestedContainer}>
+              <Text style={styles.basicText}>{element.questionText}</Text>
+              <TextInput style={styles.thinInput} placeholder='Answer' placeholderTextColor='#2B303B' onEndEditing={(value) => setTextAnswer(index, value)} defaultValue={formData.formElements[index].questionOptions[0][0]}></TextInput>
+            </View>
+          )
         } else if (element.questionType == 'number') {
         }
       });
@@ -399,11 +414,13 @@ export default function App() {
       )
     }
     return (
-      <View style={styles.container}>
-        <Text style={styles.basicText}>Form View</Text>
-        <FormPicker></FormPicker>
-        <FormView value={reloadVal}></FormView>
-      </View>
+      <ScrollView contentContainerStyle={{backgroundColor: '#23272f', flexGrow: 1}}>
+        <View style={styles.container}>
+          <Text style={styles.basicText}>Form View</Text>
+          <FormPicker></FormPicker>
+          <FormView value={reloadVal}></FormView>
+        </View>
+      </ScrollView>
     )
   }
   return (
