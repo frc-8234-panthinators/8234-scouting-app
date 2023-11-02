@@ -1,4 +1,1 @@
-# 8234-scouting-app
-Team 8234's scouting app, built with Expo/React Native
-
-This repo is just the mobile client, the server code will be added to a seperate repo as it is created.
+Development has been moved to the [scoutinator](https://github.com/frc-8234-panthinators/scoutinator) repo.
